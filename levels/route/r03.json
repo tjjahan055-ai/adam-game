@@ -1,0 +1,18 @@
+{
+  "id": "r03",
+  "title": "Two Streets, One Line",
+  "intro": "Both clinics need power, and you have one splitter. Where does it go?",
+  "width": 5,
+  "height": 7,
+  "par": 9,
+  "cells": [
+    {"x": 2, "y": 6, "type": "source", "sides": "N"},
+    {"x": 0, "y": 0, "type": "target"},
+    {"x": 4, "y": 0, "type": "target"},
+    {"x": 2, "y": 2, "type": "block"},
+    {"x": 2, "y": 1, "type": "block"},
+    {"x": 0, "y": 4, "type": "block"},
+    {"x": 4, "y": 5, "type": "block"}
+  ],
+  "inventory": {"straight": 7, "corner": 2, "tee": 1}
+}
