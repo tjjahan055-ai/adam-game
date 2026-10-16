@@ -1,0 +1,101 @@
+name: Test and build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.5.1"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Godot and export templates
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          wget -q "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q "Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          sudo mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          wget -q "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          tpl="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$tpl"
+          unzip -q "Godot_v${GODOT_VERSION}-stable_export_templates.tpz" -d /tmp/tpl
+          mv /tmp/tpl/templates/* "$tpl/"
+          rm -f ./*.zip ./*.tpz
+
+      - name: Import project
+        run: godot --headless --path . --import
+
+      - name: Run tests
+        run: godot --headless --path . --script res://tests/run_tests.gd
+
+      - name: Prepare Android signing (debug key, prototype only)
+        run: |
+          keytool -genkeypair -keystore "$HOME/debug.keystore" -storepass android \
+            -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 \
+            -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.5.tres" <<SETTINGS
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_SDK_ROOT"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/debug_keystore = "$HOME/debug.keystore"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          SETTINGS
+          sed -i 's/^ *//' "$HOME/.config/godot/editor_settings-4.5.tres"
+
+      - name: Export Android APK
+        run: |
+          mkdir -p build/android
+          godot --headless --path . --export-debug "Android" build/android/adam-city-fixer-prototype.apk
+          test -s build/android/adam-city-fixer-prototype.apk
+
+      - name: Export web build
+        run: |
+          mkdir -p build/web
+          godot --headless --path . --export-release "Web" build/web/index.html
+          test -s build/web/index.wasm
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adam-city-fixer-android
+          path: build/android/adam-city-fixer-prototype.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adam-city-fixer-web
+          path: build/web
+
+      - name: Publish prototype APK (main branch only)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: prototype
+          name: Prototype (latest build)
+          prerelease: true
+          body: "Latest prototype build for supervised playtests. Android: download the APK below and install it. iPhone: use the web version."
+          files: build/android/adam-city-fixer-prototype.apk
+
+      - name: Publish web version to gh-pages (main branch only)
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+          force_orphan: true

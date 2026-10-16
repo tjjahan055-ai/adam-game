@@ -1,0 +1,15 @@
+{
+  "id": "r01",
+  "title": "Kiosk Row",
+  "intro": "The café on Kiosk Row has no power. Lay cable from the substation to the café.",
+  "width": 5,
+  "height": 3,
+  "par": 3,
+  "cells": [
+    {"x": 0, "y": 1, "type": "source", "sides": "E"},
+    {"x": 4, "y": 1, "type": "target"},
+    {"x": 1, "y": 0, "type": "block"},
+    {"x": 3, "y": 2, "type": "block"}
+  ],
+  "inventory": {"straight": 3}
+}
